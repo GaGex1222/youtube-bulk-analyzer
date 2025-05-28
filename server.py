@@ -5,16 +5,26 @@ from pytubefix import YouTube # For getting audio from a youtube video
 import os
 import openai
 from dotenv import load_dotenv
-
+from supabase import create_client
 load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
-# Get the current directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_API_KEY")
+supabase = create_client(url, key) 
+current_dir = os.path.dirname(os.path.abspath(__file__)) 
 app = Flask(__name__)
+
 @app.route('/')
 def home():
+    supabase.table('users').insert({
+        "email": "Random",
+        "username": "Text122",
+        "password": "Gald122"
+    }).execute()
     return "Hello, Flask!"
+
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_videos():
@@ -46,8 +56,9 @@ def analyze_videos():
         try:
             transcript_list = YouTubeTranscriptApi.get_transcript(id)
             print(transcript_list)
-        except Exception:
+        except NoTranscriptFound:
             print("Cant find transcript for: ", id, " Now trying to get captions with whisper")
+            break
             url = f"https://www.youtube.com/watch?v={id}"
             yt = YouTube(url)
             title = yt.title
@@ -76,3 +87,5 @@ def analyze_videos():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+

@@ -11,22 +11,22 @@ const YouTubeAnalyzerHome: React.FC = () => {
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
       {/* YouTube Logo */}
-      <div className="mb-10 flex items-center justify-center bg-red-600 rounded-3xl w-20 h-12 shadow-lg">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="white"
-          className="w-8 h-8 ml-1"
-        >
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
+        <div className="mb-12 flex items-center justify-center bg-red-600 rounded-3xl w-24 h-14 mx-auto shadow-xl">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="white"
+            className="w-10 h-10 ml-1"
+          >
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
 
       <h1 className="text-4xl sm:text-5xl font-bold mb-6 text-center">
-        Summarize YouTube Videos Instantly
+        Summarize YouTube Videos In minutes.
       </h1>
       <p className="text-lg sm:text-xl text-red-800 mb-10 text-center max-w-2xl">
-        Paste a YouTube link and get a clear, AI-powered summary using GPT-4o or GPT-3.5 Turbo.
+        Paste up to 10 Youtube videos and get clear, AI-powered summary for each one using our best AI technology.
       </p>
 
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
@@ -43,10 +43,6 @@ const YouTubeAnalyzerHome: React.FC = () => {
           Analyze Videos
         </button>
       </div>
-
-      <p className="text-sm text-red-500 mt-8 text-center">
-        Powered by OpenAI Whisper & GPT | Built with ❤️ by You
-      </p>
     </motion.div>
   );
 };
