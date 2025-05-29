@@ -2,18 +2,20 @@ from flask import Flask, jsonify, request # To run the server
 from urllib.parse import urlparse, parse_qs # To get the youtube video id
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound # For getting ready captions
 from pytubefix import YouTube # For getting audio from a youtube video
-import os
-import openai
-from dotenv import load_dotenv
-from supabase import create_client
+import os # to access env keys
+import openai # to interact with openai api
+from dotenv import load_dotenv # to access env keys
+from supabase import create_client # to access db
+from flask_cors import CORS # to enable cors in my server
+import bcrypt # for password encryption
 load_dotenv()
-
 openai.api_key = os.getenv('OPENAI_API_KEY')
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_API_KEY")
 supabase = create_client(url, key) 
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:3001"])
 
 @app.route('/')
 def home():
@@ -24,7 +26,25 @@ def home():
     }).execute()
     return "Hello, Flask!"
 
-
+@app.route('/signup', methods=["POST"])
+def signup():
+    credentials = request.get_json()
+    email = credentials.get("email")
+    password = credentials.get("password").encode('utf-8')
+    email_exists = supabase.table("users").select("email").eq('email', email).limit(1).execute()
+    if(email_exists.data):
+        return jsonify({"error": "Email already exists, try logging in."}), 500
+    
+    hashed_pass = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+    try:
+        supabase.table('users').insert({
+            "email": email,
+            "password": hashed_pass
+        }).execute()
+    except Exception as e:
+        return jsonify({"error": 'Error signing up, try again later.'}), 500
+    
+    return jsonify({"error": ''}), 200
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_videos():
@@ -56,9 +76,8 @@ def analyze_videos():
         try:
             transcript_list = YouTubeTranscriptApi.get_transcript(id)
             print(transcript_list)
-        except NoTranscriptFound:
+        except Exception:
             print("Cant find transcript for: ", id, " Now trying to get captions with whisper")
-            break
             url = f"https://www.youtube.com/watch?v={id}"
             yt = YouTube(url)
             title = yt.title

@@ -3,23 +3,49 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react"; // Import necessary icons
-import { useState } from "react"; // For toggling password visibility
+import { UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 const SignupPage: React.FC = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // New state for confirm password
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>(''); // New error message state
 
-  // Simple placeholder for signup logic
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, you'd send registration data to your backend
-    console.log("Signup attempt!");
-    // For demonstration, redirect to a confirmation page or login after a short delay
-    setTimeout(() => {
-      router.push("/login"); // Redirect to login page after signup
-    }, 500);
+    setErrorMessage(''); // Reset error message on submit
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        console.log(data)
+        setErrorMessage(data.error || "Signup failed.");
+        return;
+      }
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 500);
+    } catch (error) {
+      setErrorMessage("Network error. Please try again.");
+    }
   };
 
   return (
@@ -44,10 +70,19 @@ const SignupPage: React.FC = () => {
         <h2 className="text-4xl font-extrabold text-red-700 mb-6">Join Us!</h2>
         <p className="text-red-800 mb-8">Create your account to start summarizing YouTube videos.</p>
 
+        {/* Error message display */}
+        {errorMessage && (
+          <div className="mb-4 text-red-600 font-semibold border border-red-400 rounded-md p-2 bg-red-100">
+            {errorMessage}
+          </div>
+        )}
+
         <form onSubmit={handleSignup} className="space-y-6">
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" size={20} />
             <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               type="email"
               placeholder="Email"
               className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-red-200 focus:border-red-500 focus:ring-red-500 focus:outline-none transition placeholder-red-400 text-red-800"
@@ -58,6 +93,8 @@ const SignupPage: React.FC = () => {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" size={20} />
             <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               className="w-full pl-10 pr-10 py-3 rounded-xl border-2 border-red-200 focus:border-red-500 focus:ring-red-500 focus:outline-none transition placeholder-red-400 text-red-800"
@@ -76,6 +113,8 @@ const SignupPage: React.FC = () => {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" size={20} />
             <input
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm Password"
               className="w-full pl-10 pr-10 py-3 rounded-xl border-2 border-red-200 focus:border-red-500 focus:ring-red-500 focus:outline-none transition placeholder-red-400 text-red-800"
