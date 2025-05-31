@@ -8,14 +8,28 @@ from dotenv import load_dotenv # to access env keys
 from supabase import create_client # to access db
 from flask_cors import CORS # to enable cors in my server
 import bcrypt # for password encryption
+import jwt
+from datetime import datetime, timedelta
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_API_KEY")
+secret_key = os.environ.get("SECRET_KEY")
 supabase = create_client(url, key) 
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3001"])
+
+#Token creation for jwt
+def create_access_token(data: dict):
+    """
+    A function that creates JWT with a custom payload
+    """
+    payload = data.copy()
+    expire = datetime.now() + timedelta(hours=1)
+    payload.update({"exp": expire})
+    token = jwt.encode(payload, secret_key, algorithm="HS256")
+    return token
 
 @app.route('/')
 def home():
@@ -31,6 +45,7 @@ def signup():
     credentials = request.get_json()
     email = credentials.get("email")
     password = credentials.get("password").encode('utf-8')
+
     email_exists = supabase.table("users").select("email").eq('email', email).limit(1).execute()
     if(email_exists.data):
         return jsonify({"error": "Email already exists, try logging in."}), 500
@@ -41,10 +56,30 @@ def signup():
             "email": email,
             "password": hashed_pass
         }).execute()
+        token = create_access_token({"email": email})
+        return jsonify({"token": token}), 200
     except Exception as e:
+        print("Error while trying to insert user data to db: ", e)
         return jsonify({"error": 'Error signing up, try again later.'}), 500
     
-    return jsonify({"error": ''}), 200
+
+@app.route('/login', methods=["POST"])
+def login():
+    credentials = request.get_json()
+    email = credentials.get("email")
+    password = credentials.get("password").encode('utf-8')
+    
+    user = supabase.table("users").select("*").eq('email', email).limit(1).execute()
+    if not user.data:
+        return jsonify({"error": "Can't find account with that email, try another one."}), 500
+    
+    is_correct_password = bcrypt.checkpw(password, user.data[0]['password'].encode('utf-8'))
+    if(is_correct_password):
+        token = create_access_token({"email": user.data[0]['email']})
+        return jsonify({"token": token}), 200
+    else:
+        return jsonify({"error": "Incorrect password."}), 401
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_videos():

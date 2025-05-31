@@ -40,6 +40,9 @@ const SignupPage: React.FC = () => {
         return;
       }
 
+      const data = await res.json()
+      localStorage.setItem("authToken", data.token)
+
       setTimeout(() => {
         router.push("/login");
       }, 500);

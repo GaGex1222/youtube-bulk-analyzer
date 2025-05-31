@@ -1,23 +1,39 @@
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react"; // Import necessary icons
-import { useState } from "react"; // For toggling password visibility
+import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
-  // Simple placeholder for login logic
-  const handleLogin = (e: React.FormEvent) => {
+  // New state for email, password, and error message
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, you'd send login credentials to your backend
-    console.log("Login attempt!");
-    // For demonstration, redirect to home or dashboard after a short delay
+    setErrorMessage(""); // Clear previous errors
+
+    const res = await fetch("http://localhost:5000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setErrorMessage(data.error || "Login failed.");
+      return;
+    }
+
+    const data = await res.json();
+    localStorage.setItem("authToken", data.token);
     setTimeout(() => {
-      router.push("/"); // Or '/dashboard'
+      router.push("/");
     }, 500);
   };
 
@@ -51,6 +67,8 @@ const LoginPage: React.FC = () => {
               placeholder="Email"
               className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-red-200 focus:border-red-500 focus:ring-red-500 focus:outline-none transition placeholder-red-400 text-red-800"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -61,6 +79,8 @@ const LoginPage: React.FC = () => {
               placeholder="Password"
               className="w-full pl-10 pr-10 py-3 rounded-xl border-2 border-red-200 focus:border-red-500 focus:ring-red-500 focus:outline-none transition placeholder-red-400 text-red-800"
               required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <motion.button
               type="button"
@@ -71,6 +91,11 @@ const LoginPage: React.FC = () => {
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </motion.button>
           </div>
+
+          {/* Error message element */}
+          {errorMessage && (
+            <p className="text-red-600 font-semibold text-sm text-left">{errorMessage}</p>
+          )}
 
           <motion.button
             type="submit"
@@ -91,7 +116,7 @@ const LoginPage: React.FC = () => {
           <p>
             Don't have an account?{" "}
             <button
-              onClick={() => router.push("/signup")} 
+              onClick={() => router.push("/signup")}
               className="text-red-700 font-bold hover:underline"
             >
               Sign Up
@@ -99,7 +124,7 @@ const LoginPage: React.FC = () => {
           </p>
           <p className="mt-2">
             <button
-              onClick={() => router.push("/forgot-password")} 
+              onClick={() => router.push("/forgot-password")}
               className="text-red-700 hover:underline text-sm"
             >
               Forgot Password?
