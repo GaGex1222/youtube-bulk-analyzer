@@ -15,7 +15,14 @@ import {
 
 const FrontPage: React.FC = () => {
   const router = useRouter();
-
+  const handleGetStarted = () => {
+    const token = localStorage.getItem("authToken")
+    if(token){
+      router.push("/analyze")
+    } else {
+      router.push('/login')
+    }
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-red-100 text-red-900 px-6 py-20 flex flex-col items-center">
       <motion.div
@@ -162,7 +169,7 @@ const FrontPage: React.FC = () => {
           <h2 className="text-3xl font-bold mb-4">Ready to transform your video watching?</h2>
           <p className="text-red-800 mb-6 text-lg">Join hundreds using AI to boost productivity.</p>
           <button
-            onClick={() => router.push("analyze")}
+            onClick={handleGetStarted}
             className="px-8 py-3 bg-red-600 text-white rounded-full font-semibold shadow-lg hover:bg-red-700 transition flex items-center gap-2"
           >
             <Rocket size={20} /> Get Started

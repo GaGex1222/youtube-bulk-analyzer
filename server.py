@@ -8,8 +8,10 @@ from dotenv import load_dotenv # to access env keys
 from supabase import create_client # to access db
 from flask_cors import CORS # to enable cors in my server
 import bcrypt # for password encryption
-import jwt
-from datetime import datetime, timedelta
+import jwt #for handling jwt
+import math #for messing around with video length
+from datetime import datetime, timedelta #for jwt timestamp
+
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 url = os.environ.get("SUPABASE_URL")
@@ -18,7 +20,7 @@ secret_key = os.environ.get("SECRET_KEY")
 supabase = create_client(url, key) 
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3001"])
+CORS(app, origins=["http://localhost:3001", "http://localhost:3000"])
 
 #Token creation for jwt
 def create_access_token(data: dict):
@@ -80,7 +82,32 @@ def login():
     else:
         return jsonify({"error": "Incorrect password."}), 401
 
+@app.route("/api/analyze-request", methods=['POST'])
+def analyze_request():
+    """
+    Handling a request for analyzing/summarizing video/s
+    Expects JSON body:
+    {
+        "videos": [ "video_url_1", "video_url_2", ... ]
+    }
 
+    """
+    data = request.get_json()
+    videos = data.get("videos")
+    videos_ids = []
+    for url in videos:
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        videos_ids.append(query_params.get("v")[0])
+    videos_stats = []
+    for id in videos_ids:
+        url = f"https://www.youtube.com/watch?v={id}"
+        yt = YouTube(url)
+        video_length = math.ceil(yt.length / 60)
+        video_title = yt.title
+        videos_stats.append({"title": video_title, "credits": video_length})
+    print(videos_stats)
+    return jsonify({"results": videos_stats})
 @app.route('/api/analyze', methods=['POST'])
 def analyze_videos():
     """
