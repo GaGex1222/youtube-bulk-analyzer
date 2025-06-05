@@ -115,7 +115,7 @@ const FrontPage: React.FC = () => {
         >
             <CheckCircle2 className="text-red-700 mb-4" size={48} />
             <h3 className="font-semibold text-lg mb-2">Multiple Videos</h3>
-            <p>Analyze up to 10 YouTube links at once, saving even more time.</p>
+            <p>Summarize up to 10 YouTube links at once, saving even more time.</p>
         </motion.div>
 
         {/* Card 3 */}

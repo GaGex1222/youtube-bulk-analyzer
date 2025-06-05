@@ -1,15 +1,21 @@
 'use client'
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { BadgeDollarSign, Sparkles, PlayCircle, CreditCard, CheckCircle, AlertCircle, PieChart, Info } from "lucide-react";
-
-// Results component
-const AnalyzeResults: React.FC<{
-  results: { title: string; credits: number }[];
-  onBack: () => void;
-  creditsType: string;
-}> = ({ results, onBack, creditsType }) => {
+import {
+  BadgeDollarSign,
+  Ban,
+  Sparkles,
+  PlayCircle,
+  CreditCard,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  Plus,
+  Loader2
+} from "lucide-react";
+// AnalyzeResults component (unchanged — you already updated it well)
+const AnalyzeResults: React.FC<{results: { title: string; credits: number, author: string }[]; onBack: () => void; creditsType: string;}> = ({ results, onBack, creditsType }) => {
   const totalCredits = results.reduce((sum, r) => sum + r.credits, 0);
 
   return (
@@ -20,70 +26,79 @@ const AnalyzeResults: React.FC<{
       transition={{ duration: 0.6 }}
     >
       <div className="flex items-center gap-2 mb-4">
-        <PieChart className="w-6 h-6 text-red-600" />
-        <h2 className="text-4xl font-bold text-center">Analysis Results</h2>
+        <h2 className="text-4xl font-bold text-center">Summarize Request</h2>
       </div>
 
       <div className="flex items-center gap-2 text-red-700 text-md mb-10 text-center">
         <Info className="w-4 h-4" />
         <p>
-          Credit type used: <span className="font-semibold capitalize">{creditsType}</span>
+          Credit type: <span className="font-semibold capitalize">{creditsType}</span>
         </p>
       </div>
 
       <ul className="w-full max-w-2xl space-y-4 mb-8">
-        {results.map(({ title, credits }, idx) => (
+        {results.map(({ title, credits, author }, idx) => (
           <li
             key={idx}
             className="p-4 bg-white border border-red-200 rounded-2xl shadow-md flex justify-between items-start"
           >
-            <span className="text-md font-medium max-w-xs">{title}</span>
-            <span className="text-red-700 font-bold">{credits} Credit{credits > 1 ? 's' : ''}</span>
+            <div className="flex flex-col max-w-xs">
+              <span className="text-md font-medium">{title}</span>
+              <span className="text-sm text-red-500">by {author}</span>
+            </div>
+            <span className="text-red-700 font-bold">
+              {credits} Credit{credits > 1 ? 's' : ''}
+            </span>
           </li>
         ))}
       </ul>
 
       <div className="mb-10 text-xl font-semibold text-red-800 flex items-center gap-2">
         <BadgeDollarSign className="w-5 h-5" />
-        Total Credits Used: <span className="text-red-700">{totalCredits}</span>
+        Total {creditsType} Credits Will Be Used: <span className="text-red-700">{totalCredits}</span>
       </div>
 
-      <button
-        onClick={onBack}
-        className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-semibold flex items-center gap-2 shadow-md"
-      >
-        <CheckCircle className="w-5 h-5" /> Analyze More Videos
-      </button>
+      <div className="flex justify-center gap-4">
+        <button
+          onClick={onBack}
+          className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-semibold flex items-center gap-2 shadow-md"
+        >
+          <CheckCircle className="w-5 h-5" /> Start Summarizing
+        </button>
+
+        <button
+          onClick={onBack}
+          className="px-6 py-3 bg-white text-red-600 border border-red-300 hover:bg-red-100 transition font-semibold rounded-xl flex items-center gap-2 shadow-sm"
+        >
+          <Ban className="w-5 h-5" /> Cancel Request
+        </button>
+      </div>
     </motion.div>
   );
 };
 
 const YouTubeAnalyzerHome: React.FC = () => {
-  const [videoLinks, setVideoLinks] = useState<string[]>([]);
+  const [videoLinks, setVideoLinks] = useState<string[]>([""]);
+  const [selectedCredit, setSelectedCredit] = useState<"Regular" | "Special">("Regular");
+  const [regularCredits, setRegularCredits] = useState(null);
+  const [specialCredits, setSpecialCredits] = useState(null);
   const router = useRouter();
-  const [selectedCredit, setSelectedCredit] = useState<"regular" | "special">("regular");
-
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [results, setResults] = useState<{ title: string; credits: number }[] | null>(null);
+  const [results, setResults] = useState<{ title: string; credits: number, author: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const lines = e.target.value.split('\n').filter(line => line.trim() !== '');
-    setVideoLinks(lines.slice(0, 10));
-  };
-
   const handleAnalyze = async () => {
-    if (videoLinks.length === 0) return;
+    const validLinks = videoLinks.filter(link => link.trim() !== '');
+    if (validLinks.length === 0) return;
 
     setIsAnalyzing(true);
     setError(null);
 
     try {
-      // Replace with your actual API call
-      const response = await fetch('http://localhost:5000/api/analyze-request', {
+      const response = await fetch('http://localhost:5000/api/summary-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videos: videoLinks }),
+        body: JSON.stringify({ videos: validLinks }),
       });
 
       if (!response.ok) {
@@ -91,7 +106,10 @@ const YouTubeAnalyzerHome: React.FC = () => {
       }
 
       const data = await response.json();
-      // Assume data = [{ title: string, credits: number }]
+      if(data.error){
+        setError(data.error)
+        return
+      }
       setResults(data.results);
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -105,6 +123,34 @@ const YouTubeAnalyzerHome: React.FC = () => {
     if (!token) {
       router.push('/');
     }
+    const getUserCredits = async () => {
+      try {
+          const res = await fetch("http://localhost:5000/api/get-credits", { 
+              method: 'GET', 
+              headers: {
+                  'Content-Type': 'application/json', 
+                  'Authorization': `Bearer ${token}` 
+              }
+          });
+
+
+        if (res.status === 401) {
+            console.warn("Session expired or invalid token. Redirecting to login.");
+            localStorage.removeItem('authToken'); 
+            router.push('/login')
+            throw new Error('Unauthorized');
+        }
+
+          // Parse the JSON response
+          const data = await res.json();
+          console.log("User Credits:", data);
+          setSpecialCredits(data.special_credits)
+          setRegularCredits(data.regular_credits)
+      } catch (error) {
+          console.error("Failed to fetch user credits:", error);
+      }
+    }
+    getUserCredits()
   }, []);
 
   if (results) {
@@ -133,44 +179,101 @@ const YouTubeAnalyzerHome: React.FC = () => {
         </p>
       </div>
 
-      {/* Input Box */}
+      {/* Input Fields */}
       <div className="w-full max-w-xl bg-white rounded-3xl shadow-xl p-6 mt-4">
         <label className="block text-sm font-medium text-red-700 mb-2">
           YouTube Links (up to 10)
         </label>
-        <textarea
-          placeholder="Paste up to 10 YouTube links, each on a new line"
-          onChange={handleTextareaChange}
-          className="w-full px-4 py-4 rounded-xl border border-red-300 text-red-900 placeholder-red-400 focus:outline-none focus:ring-2 focus:ring-red-600 mb-4 resize-none h-48"
-          disabled={isAnalyzing}
-        />
+
+      {videoLinks.map((link, index) => (
+          <div key={index} className="relative mb-2">
+            <input
+              type="text"
+              value={link}
+              onChange={(e) => {
+                const updated = [...videoLinks];
+                updated[index] = e.target.value;
+                setVideoLinks(updated);
+              }}
+              placeholder={`YouTube Link ${index + 1}`}
+              className="w-full px-4 py-3 pr-10 rounded-xl border border-red-300 text-red-900 placeholder-red-400 focus:outline-none focus:ring-2 focus:ring-red-600"
+              disabled={isAnalyzing}
+            />
+            {videoLinks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = videoLinks.filter((_, i) => i !== index);
+                  setVideoLinks(updated);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 text-lg font-bold"
+                disabled={isAnalyzing}
+                style={{ lineHeight: '1' }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+
+
+
+        {videoLinks.length < 10 && (
+          <button
+            type="button"
+            onClick={() => setVideoLinks([...videoLinks, ""])}
+            className="mb-4 text-sm text-red-700 hover:underline font-medium flex items-center gap-1"
+            disabled={isAnalyzing}
+          >
+            <Plus className="w-4 h-4" /> Add Video
+          </button>
+        )}
 
         {/* Credit Type Buttons */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-red-700 mb-2">
-            Credit Type
-          </label>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setSelectedCredit("regular")}
-              className={`w-1/2 py-2 flex items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition
-                ${selectedCredit === "regular"
-                ? "bg-red-600 text-white border-red-600"
-                : "bg-red-100 text-red-700 border-red-300 hover:bg-red-200"}`}
-              disabled={isAnalyzing}
-            >
-              <BadgeDollarSign className="w-4 h-4" /> Regular Credit (9)
-            </button>
-            <button
-              onClick={() => setSelectedCredit("special")}
-              className={`w-1/2 py-2 flex items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition
-                ${selectedCredit === "special"
-                ? "bg-red-600 text-white border-red-600"
-                : "bg-red-100 text-red-700 border-red-300 hover:bg-red-200"}`}
-              disabled={isAnalyzing}
-            >
-              <Sparkles className="w-4 h-4" /> Special Credit (8)
-            </button>
+        <label className="block text-sm font-medium text-red-700 mb-2">
+          Credit Type
+        </label>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setSelectedCredit('Regular')}
+            className={`w-1/2 py-2 flex items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition
+              ${selectedCredit === "Regular"
+                ? "bg-red-600 text-white border-red-600 shadow-md"
+                : "bg-red-100 text-red-700 border-red-300 hover:bg-red-200"
+              }
+              ${isAnalyzing || regularCredits === null ? 'opacity-60 cursor-not-allowed' : ''}
+            `}
+            disabled={isAnalyzing || regularCredits === null} 
+          >
+            {regularCredits === null ? (
+              // Show spinning loader if regularCredits is null (loading)
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <BadgeDollarSign className="w-4 h-4" /> Regular Credits ({regularCredits})
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => setSelectedCredit("Special")}
+            className={`w-1/2 py-2 flex items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition
+              ${selectedCredit === "Special"
+                ? "bg-red-600 text-white border-red-600 shadow-md"
+                : "bg-red-100 text-red-700 border-red-300 hover:bg-red-200"
+              }
+              ${isAnalyzing ? 'opacity-60 cursor-not-allowed' : ''}
+            `}
+            disabled={isAnalyzing}
+          >
+            {specialCredits === null ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" /> Special Credits ({specialCredits})
+              </>
+            )}
+          </button>
           </div>
         </div>
 
@@ -184,14 +287,14 @@ const YouTubeAnalyzerHome: React.FC = () => {
         {/* Analyze CTA */}
         <button
           onClick={handleAnalyze}
-          disabled={isAnalyzing || videoLinks.length === 0}
+          disabled={isAnalyzing || videoLinks.every(link => link.trim() === '')}
           className={`w-full py-3 rounded-xl font-semibold text-white text-lg shadow-md transition transform flex items-center justify-center gap-2
             ${isAnalyzing
               ? "bg-red-400 cursor-not-allowed"
               : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:-translate-y-1"}`}
         >
           <PlayCircle className="w-5 h-5" />
-          {isAnalyzing ? "Analyzing..." : "Analyze Videos Now"}
+          {isAnalyzing ? "Summarizing..." : "Summarize videos now"}
         </button>
 
         {/* Buy More Credits Button */}

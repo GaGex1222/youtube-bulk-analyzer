@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  message?: string
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({message}) => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -33,9 +37,16 @@ const LoginPage: React.FC = () => {
     const data = await res.json();
     localStorage.setItem("authToken", data.token);
     setTimeout(() => {
-      router.push("/");
+      window.location.href = "/"
     }, 500);
   };
+  
+  // if the page has been loaded with a message show it as an error (Like session has expired)
+  useEffect(() => {
+    if(message){
+      setErrorMessage(message)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-red-100 text-red-900 px-6 py-20 flex flex-col items-center justify-center">

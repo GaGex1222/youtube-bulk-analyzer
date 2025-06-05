@@ -73,18 +73,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     whileTap={{ scale: 0.95 }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                    onClick={() => router.push('/dashboard')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition font-medium"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
                     onClick={handleLogout}
                     className="flex items-center gap-2 px-4 py-2 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition font-medium"
@@ -103,7 +91,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     className="flex items-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition font-medium"
                   >
                     <Video className="w-4 h-4" />
-                    Analyze
+                    Summarize
                   </motion.button>
 
                   <motion.button
@@ -119,6 +107,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     Pricing
                   </motion.button>
 
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                    onClick={() => router.push('/dashboard')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition font-medium"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </motion.button>
                 </>
               )}
             </div>

@@ -44,7 +44,7 @@ const SignupPage: React.FC = () => {
       localStorage.setItem("authToken", data.token)
 
       setTimeout(() => {
-        router.push("/login");
+        window.location.href = "/"
       }, 500);
     } catch (error) {
       setErrorMessage("Network error. Please try again.");

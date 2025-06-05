@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request # To run the server
 from urllib.parse import urlparse, parse_qs # To get the youtube video id
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound # For getting ready captions
 from pytubefix import YouTube # For getting audio from a youtube video
+from pytubefix.exceptions import VideoUnavailable, RegexMatchError # For handling invalid youtube links
 import os # to access env keys
 import openai # to interact with openai api
 from dotenv import load_dotenv # to access env keys
@@ -22,6 +23,22 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3001", "http://localhost:3000"])
 
+def get_and_validate_token():
+    """
+    A function to get and validate client sent token
+    """
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'message': 'Authorization header missing or invalid'}), 401
+    token = auth_header.split(' ')[1]
+    try:
+        decoded_token = jwt.decode(token, secret_key, algorithms=["HS256"])
+        return decoded_token
+    except jwt.ExpiredSignatureError:
+        raise jwt.ExpiredSignatureError('Token has expired.')
+    except jwt.InvalidTokenError:
+        raise jwt.InvalidTokenError('Invalid token.')
+    
 #Token creation for jwt
 def create_access_token(data: dict):
     """
@@ -82,8 +99,23 @@ def login():
     else:
         return jsonify({"error": "Incorrect password."}), 401
 
-@app.route("/api/analyze-request", methods=['POST'])
-def analyze_request():
+@app.route("/api/get-credits", methods=['GET'])
+def get_credits():
+    try:
+        decoded_token = get_and_validate_token()
+    except Exception as e:
+        print("Error happened while trying to decode token: ", e)
+        return jsonify({"message": str(e)}), 401
+    user_email = decoded_token.get("email")
+    user_data = supabase.table("users").select("regular_credits,special_credits").eq("email", user_email).execute().data[0]
+    regular_credits = user_data['regular_credits']
+    special_credits = user_data['special_credits']
+    print(regular_credits)
+    print(special_credits)
+    return jsonify({"special_credits": special_credits, "regular_credits": regular_credits})
+
+@app.route("/api/summary-request", methods=['POST'])
+def summary_request():
     """
     Handling a request for analyzing/summarizing video/s
     Expects JSON body:
@@ -94,22 +126,22 @@ def analyze_request():
     """
     data = request.get_json()
     videos = data.get("videos")
-    videos_ids = []
-    for url in videos:
-        parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-        videos_ids.append(query_params.get("v")[0])
+        
     videos_stats = []
-    for id in videos_ids:
-        url = f"https://www.youtube.com/watch?v={id}"
-        yt = YouTube(url)
-        video_length = math.ceil(yt.length / 60)
-        video_title = yt.title
-        videos_stats.append({"title": video_title, "credits": video_length})
-    print(videos_stats)
+    for index, url in enumerate(videos):
+        try:
+            yt = YouTube(url)
+            video_length = math.ceil(yt.length / 60)
+            video_title = yt.title
+            video_author = yt.author
+            videos_stats.append({"title": video_title, "credits": video_length, "author": video_author})
+        except (RegexMatchError, VideoUnavailable):
+            return jsonify({"error": f"Youtube link {index + 1} is invalid or unavailable."})
+
     return jsonify({"results": videos_stats})
-@app.route('/api/analyze', methods=['POST'])
-def analyze_videos():
+
+@app.route('/api/summarize', methods=['POST'])
+def summarize_videos():
     """
     Handle analyzing videos in bulk and returning a summary of each one.
 
