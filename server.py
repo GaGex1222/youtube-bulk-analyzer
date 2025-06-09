@@ -12,6 +12,7 @@ import bcrypt # for password encryption
 import jwt #for handling jwt
 import math #for messing around with video length
 from datetime import datetime, timedelta #for jwt timestamp
+import uuid # For random generated string
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -38,7 +39,8 @@ def get_and_validate_token():
         raise jwt.ExpiredSignatureError('Token has expired.')
     except jwt.InvalidTokenError:
         raise jwt.InvalidTokenError('Invalid token.')
-    
+
+
 #Token creation for jwt
 def create_access_token(data: dict):
     """
@@ -49,6 +51,44 @@ def create_access_token(data: dict):
     payload.update({"exp": expire})
     token = jwt.encode(payload, secret_key, algorithm="HS256")
     return token
+
+def summarize_transcript(text: str, credit_type: str):
+    """
+    Takes a text and summarize it using open AI
+    Returns the summary
+    """
+    response = openai.chat.completions.create(
+        model="gpt-4o" if credit_type == "special" else "gpt-3.5-turbo",  # or "gpt-3.5-turbo" in case of other subscription
+        messages=[
+            {"role": "system", "content": (
+                "You are a summarization assistant. You are given youtube captions, your only job is to summarize the actual spoken content from YouTube captions, "
+                "as accurately and concisely as possible. Do not describe the topic generally. Focus on what the speaker explicitly says."
+            )},
+            {"role": "user", "content": text}
+        ]
+    )
+    summary = response.choices[0].message.content
+    return summary
+
+def transcribe_youtube_video(video_id: str):
+    try:
+        response = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = " ".join([t['text'] for t in response])
+        return transcript
+    except Exception as e:
+        print("Erorr occured when trying to get transcript of youtube video with api: ", e, "Now using whisper")
+        url = f"https://www.youtube.com/watch?v={id}"
+        yt = YouTube(url)
+        title = yt.title
+        filename = f"{uuid.uuid4().hex}.mp3"
+        audio_stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+        audio_stream.download(output_path=current_dir, filename=filename)
+        
+        with open(filename, "rb") as audio_file:
+            transcript = openai.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
 
 @app.route('/')
 def home():
@@ -159,6 +199,7 @@ def summarize_videos():
 
     # Getting videos ids
     videos_urls = request.json['videos']
+    credit_type = request.json['creditType']
     videos_ids = []
     for url in videos_urls:
         parsed_url = urlparse(url)
@@ -167,36 +208,10 @@ def summarize_videos():
     
     summaries = {} # Title: Captions
     for id in videos_ids:
-        try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(id)
-            print(transcript_list)
-        except Exception:
-            print("Cant find transcript for: ", id, " Now trying to get captions with whisper")
-            url = f"https://www.youtube.com/watch?v={id}"
-            yt = YouTube(url)
-            title = yt.title
-            audio_stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
-            audio_stream.download(output_path=current_dir, filename='audio.mp3')
-            #only resume this part when i want to release app, to reduce development expenses
-            # with open("audio.mp3", "rb") as audio_file:
-            #    transcript = openai.audio.transcriptions.create(
-            #        model="whisper-1",
-            #        file=audio_file
-            #    )
-            text = "בומה בתראשון צריך לשפשף את העניין. במקום שהתמרגילים לראות בואy את המסך של השלאם פטופ, קן יש משקפיים. ספייסטופ, פעול, לפטופ של מייניינשי, שוניכה עשלכה בתי גב. הסתר דאפי ישראלי הקטנה הזה שמונה בסך הכול שישים מובדים, בבקש לשנות באמצעות מציאות רבודה את הדרך שבא כל מישיושב מול מחשב עובד. מול איתו. רק אם שינוי קטן במקום עשך יש לנו משקפיים. שרסות? שרסות מבדה. את השב צורה נוכן, כמו שאתה עושב מול מחשב רגיד. ארהו. אני מסתכל לך אני רואה אותך, אני לא רואה כרגע את המסך שלה המחשב. אני מסתכל פעמול היחידה שלי ופי תומש לי פה את תצוגה פנורמית רחבה. אני מגניב. אני רואה פעמולי בעצם דסטופ פרגיל. אני רואה את החיפוש שלי בגוגל, יוטיוב, ג'ימאל, היו מען שלי, כשאני מול המחשב, אני רואה את המסך שלי, אבל אם אני מסתכל, הצלע נראות חייקיון מסתכל, למשקפיים, צלעייקים, משקפשם, שאני רואה להימת, אבל אני רואה אותך, אני יכול לקהמית לך סיכה. בזמן שאנחנו התנסינו במוצר, סמנו לב שם, מססקים שסוווינו ברחבי המסרד, כבועים פשוט קיקן כבר לא ממש צריך אותם. עכשיו יש לך פתאום תכנת עבודה, שמכליפה שלושה 4-5 משחים, נהידת, ביקרון פקטית מאוד. לא תקח את המחשיר את הקום, ופשוט תלך מסביב. אוקיי, עכשיו אני לא רואה כלום. נכון, כרגע אנחנו ממצב ניהיה, חמסך נשאר פה מה לשולחנים. אז הוא בעצם מישה רפושה איתי, אין, אני רואה אותו פתאום. נכון, מכאן. זה עשוד של הקסם של מפסטריאליתי, זה בעצם הפיקסלים באמת נמצאים פה בתוך החלל, בתוך חדר במקום יחסי. אוקיי, ואין מה נראות זה, אבל היא סטול עכשיו ולראות את המסחים מולי. זה נכו בעצם, משנה עם עוד, עם אז קיצור, שגם נמצא בתפרית, ועכשיו אני רואה את זה מולי. נכון, בכל מקום שתלך עם המקלדת, שם המסח יגיע איתך. התצורות המוקרות קיום של משקפיים, שבהם מותמא הטכנולוגיה שכזו מתחלקות לשני. זה תמקוותים ומסור בלים של משקפיים הציוט רבודה, כמו המתקויסט או האפלויזיון פרו. היי מתה, תקוווידיום. ומשקפיים רגילים למרא שאי יכולות הטכנולוגיות שלהם לא מתפתות ביטצוגה בתוך האדשה, ומסתקות במצלמה מובנה את ועוד כמה אלמנטים. אנחנו מצלמים את כל מה שקורס ובבנו, את המצלמה הזאת, את המצלמה הזאת, את כל מה שנמצקן. כאן, בזכות כבר שמתחבר ליחידת הבסיס, היא המחשב הנעד, המשקפיים שומרים על המבנה הטבעי שלהם והדעין, הטצוגה שמגיע על העיניים, הרבה יותר מפותחת. גם מתה וגם מהפלויזי חברות אחרות, וגם אנחנו רואים את המקודת התקרנסות האטידית, לנקודת דומה. כולנו רוצים בסוף לבש, משקפיים קלות, משקל, כמו ראי בן, על חותיות, את הצוגות. הם עוד לא יאילות אנרגטית לרמה, שנוכל להעורו זה את הכל, מה שהוא קריר, מה שהוא קטן, ומה שהוא שייכזו אתנו, כ-520 שאת העבודה לכל היום. המוצר הזה, שהם מגזין טיים בחרבו לאחת האמצעות, המבטיחות של לפיים 23, יוצא את הלעפצה מסכרית, אלף צ'ה מודולר ליחידה הזאת הגמיכיר, אבל אם צפיתם עכשיו, והתחשק לכם לרוץ ולקנות, צפוי על הכל מחזבה. אנחנו מתכנים משהו כמה מריקאי, כי זה שוק מאוד ודול ומאוחד, אנחנו כבר מקבלים מפניות רבות מהרופה, והם אמי שישראל תגיע בשנים הקובות, מאוד קובות. לחברה הקטנה הזאת, מישראל ישודר חרוקה לעבור, לפני שתוכל להגיע למגרש של הגדולות באמת. אנחנו מאמינים שעדווה הזה, וולוצה טבעית של עבודה עם עכשיו. אז יחליף לנו תלאב, תופי, נחליף את המחשבים שלנו, ומשם הזה לחוי גדל. אנחנו לא באים להמצאים חדש, איך אנשים מובדים נחשב, ואנחנו עושים שינוי קטן, וזה מוריד מורדים מגבלות של מקום. המפתחים כאן אופטימים, מתכנתן, משקפי המחשב על הלום, ולגמרי, הדבר הגדולה בה"
-            #Getting a summary from gpt
-            summary = openai.chat.completions.create(
-                model="gpt-4",  # or "gpt-3.5-turbo" in case of other subscription
-                messages=[
-                    {"role": "system", "content": (
-                        "You are a summarization assistant. Your only job is to summarize the actual spoken content from YouTube captions, "
-                        "as accurately and concisely as possible. Do not describe the topic generally. Focus on what the speaker explicitly says."
-                    )},
-                    {"role": "user", "content": text}
-                ]
-            )
-            print(summary.choices[0].message.content)
-    return jsonify({"received": videos_urls})
+        print("Video id: ", type(id))
+        transcribe_youtube_video("EZDV_zif228")
+
+    return jsonify({"received": videos_urls, "credits": credit_type})
 
 if __name__ == "__main__":
     app.run(debug=True)
